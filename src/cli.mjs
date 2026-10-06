@@ -39,7 +39,7 @@ export async function main(argv = process.argv.slice(2), signal) {
   check(!values['no-browser'] || command === 'login', '--no-browser is only valid with login.');
   check(!values.model || command === 'run', '--model is only valid with run.');
   check(!forwarded.length || command === 'run', 'Only run accepts Codewhale arguments.');
-  check(!forwarded.some(arg => /^--(?:provider|model|base-url|api-key|config|config-path)(?:=|$)/.test(arg)), 'Do not override provider/model/credentials/config after --; choose the LMM model with --model.');
+  check(!forwarded.some(arg => /^--(?:provider|model|base-url|api-key|config|config-path|profile)(?:=|$)/.test(arg)), 'Do not override provider/model/credentials/config/profile after --; choose the LMM model with --model.');
   if (command === 'help') { console.log(help); return 0; }
   const store = new SessionStore(new OAuth(values.issuer || process.env.LMM_ISSUER));
   const output = value => console.log(JSON.stringify(value, null, 2));
