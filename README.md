@@ -2,7 +2,7 @@
 
 通过 LMM 网页授权登录，在 Codewhale 中使用 LMM 的模型与分组，不需要复制 API Key。
 
-**当前版本：0.1.0-alpha.1。** 这是 OAuth 伴随适配器，不是 Codewhale 原生 `/login` provider 插件。依据 Codewhale `b367f6248715510cb5d527e57e4e352db14cb0cd` 的插件和自定义 provider 接口实现。该版本的插件接口不能注册模型提供商或 OAuth 回调，因此使用独立 CLI 完成授权，通过临时本地 provider 连接 Codewhale；`plugin.json` 提供可选的使用说明 skill。
+**当前版本：0.1.0-alpha.2。** 这是 OAuth 伴随适配器，不是 Codewhale 原生 `/login` provider 插件。依据 Codewhale 0.10.1 开发源码 `ecbf2869ab9110486a9e1d6d75481d1d7adf8acf`，并使用 npm 当前稳定版进行原生目录测试 的插件和自定义 provider 接口实现。该版本的插件接口不能注册模型提供商或 OAuth 回调，因此使用独立 CLI 完成授权，通过临时本地 provider 连接 Codewhale；`plugin.json` 提供可选的使用说明 skill。
 
 目前支持目录中声明 `openai-completions` 的模型、工具调用请求与 SSE 透传。**不支持 Responses-only、Anthropic Messages-only 模型，也未移植 Pi 的 MCP、市场工具和原生模型选择器集成。** 不会伪造模型能力、上下文长度或价格。
 
@@ -40,7 +40,7 @@ codewhale-lmm logout
 
 `status` 只读本地状态；`balance` 和 `usage` 读取 LMM 账户余额与授权允许的日聚合用量。未知价格保持 `null`，不是免费。
 
-启动时创建临时 provider 配置，设置 `CODEWHALE_CONFIG_PATH`，并传入临时本地连接凭据。不会覆盖用户原有配置，也不会继承原配置中的自定义运行设置。关闭 Codewhale 后清理本地监听和临时配置。适配器不重试模型 POST；Codewhale 自身的重试策略仍由宿主管理。
+启动时创建临时 provider 配置，设置 `CODEWHALE_CONFIG_PATH`，并传入临时本地连接凭据。不会覆盖用户原有配置，也不会继承原配置中的自定义运行设置。关闭 Codewhale 后清理本地监听和临时配置。会清除子进程中的 `CODEWHALE_PROFILE` / `DEEPSEEK_PROFILE`，并拒绝 `--profile` 覆盖临时配置；不修改父进程环境。适配器不重试模型 POST；Codewhale 自身的重试策略仍由宿主管理。
 
 可选环境变量：
 
@@ -90,9 +90,11 @@ OAuth access/refresh token 保存在适配器私有目录，不进入 Codewhale 
 npm test
 npm run check
 npm run pack:check
+# 官方原生宿主，只测试本地 OAuth 和模型目录，不调用生产推理
+LMM_CODEWHALE_BIN=/absolute/path/to/codewhale npm run test:host
 ```
 
-本地 Linux / Node.js 22.16.0 已执行 36 项测试，全部通过，包括真实 HTTP 回环 PKCE、跨进程刷新互斥、崩溃日志、撤销失败保留、分组隔离、SSE 与取消、临时配置清理，以及模拟宿主进程调用本地桥。模拟宿主不是官方 Codewhale 二进制；尚未完成真实生产授权、Codewhale TUI、账单核对或 Windows/Termux 实机验收。Go 注册测试已在父项目首轮 GitHub CI 通过；本地没有运行 Go 依赖环境。
+本地 Linux / Node.js 22.16.0 已执行 38 项测试，全部通过，包括真实 HTTP 回环 PKCE、跨进程刷新互斥、崩溃日志、撤销失败保留、分组隔离、SSE 与取消、临时配置清理，以及模拟宿主进程调用本地桥。模拟宿主不是官方 Codewhale 二进制；尚未完成真实生产授权、Codewhale TUI、账单核对或 Windows/Termux 实机验收。Go 注册测试已在父项目首轮 GitHub CI 通过；本地没有运行 Go 依赖环境。
 
 ## 独立仓库与子模块
 
@@ -102,8 +104,8 @@ npm run pack:check
 
 ## 接口依据
 
-- https://github.com/Hmbown/Codewhale/blob/b367f6248715510cb5d527e57e4e352db14cb0cd/docs/PLUGIN_BUNDLES.md
-- https://github.com/Hmbown/Codewhale/blob/b367f6248715510cb5d527e57e4e352db14cb0cd/docs/CONFIGURATION.md
+- https://github.com/codewhale-hq/Codewhale/blob/ecbf2869ab9110486a9e1d6d75481d1d7adf8acf/docs/PLUGIN_BUNDLES.md
+- https://github.com/codewhale-hq/Codewhale/blob/ecbf2869ab9110486a9e1d6d75481d1d7adf8acf/docs/CONFIGURATION.md
 - https://github.com/TokenNotIncluded/api.lmm.best/blob/main/apps/api-go/service/oauth_contract.md
 
 AGPL-3.0-only. 本项目不隶属于 Codewhale。

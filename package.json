@@ -1,6 +1,6 @@
 {
   "name": "@tokennotincluded/codewhale-lmm-provider",
-  "version": "0.1.0-alpha.1",
+  "version": "0.1.0-alpha.2",
   "description": "LMM OAuth companion adapter and guidance bundle for Codewhale",
   "type": "module",
   "license": "AGPL-3.0-only",
@@ -9,6 +9,7 @@
   "files": ["src", "skills", "plugin.json", "README.md", "LICENSE"],
   "scripts": {
     "test": "node --test test/*.test.mjs",
+    "test:host": "node --test test/native-host.mjs",
     "check": "node --check src/oauth.mjs && node --check src/session.mjs && node --check src/provider.mjs && node --check src/cli.mjs",
     "pack:check": "npm pack --dry-run --ignore-scripts"
   }
