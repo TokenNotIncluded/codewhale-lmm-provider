@@ -26,6 +26,8 @@ test('official Codewhale loads the isolated provider and refreshes the loopback 
     CODEWHALE_PROFILE: 'must-not-be-loaded', DEEPSEEK_PROFILE: 'must-not-be-loaded',
     HTTP_PROXY: 'http://127.0.0.1:1', HTTPS_PROXY: 'http://127.0.0.1:1',
     ALL_PROXY: 'http://127.0.0.1:1', NO_PROXY: '127.0.0.1,localhost',
+    http_proxy: 'http://127.0.0.1:1', https_proxy: 'http://127.0.0.1:1',
+    all_proxy: 'http://127.0.0.1:1', no_proxy: '127.0.0.1,localhost',
   });
   async function run(args) {
     const child = spawn(binary, ['--config', config, ...args], { cwd: f.home, env,
