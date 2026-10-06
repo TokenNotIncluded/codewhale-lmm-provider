@@ -143,8 +143,8 @@ export function configuration(baseURL, model) {
 export function childEnvironment(configPath, secret, source = process.env) {
   const env = { ...source };
   for (const key of Object.keys(env)) {
-    // Keep ambient route overrides from replacing the selected, credential-bound route.
-    if (/^(CODEWHALE|DEEPSEEK|OPENAI)_(API_KEY|BASE_URL|MODEL|DEFAULT_TEXT_MODEL|PROVIDER|PROFILE|HTTP_HEADERS|CONFIG_PATH|CONFIG_FILE)$/.test(key)) delete env[key];
+    // Windows treats environment names case-insensitively; remove every spelling.
+    if (/^(CODEWHALE|DEEPSEEK|OPENAI)_(API_KEY|BASE_URL|MODEL|DEFAULT_TEXT_MODEL|PROVIDER|PROFILE|HTTP_HEADERS|CONFIG_PATH|CONFIG_FILE)$/i.test(key)) delete env[key];
   }
   env.CODEWHALE_CONFIG_PATH = configPath;
   env.LMM_CODEWHALE_BRIDGE_TOKEN = secret;
