@@ -32,7 +32,7 @@ jobs:
           replace('src/provider.mjs', 'PROVIDER|HTTP_HEADERS|CONFIG_PATH|CONFIG_FILE)', 'PROVIDER|PROFILE|HTTP_HEADERS|CONFIG_PATH|CONFIG_FILE)')
           replace('src/cli.mjs', 'api-key|config|config-path)', 'api-key|config|config-path|profile)')
           replace('src/cli.mjs', 'provider/model/credentials/config after', 'provider/model/credentials/config/profile after')
-          replace('README.md', '依据 Codewhale `b367f6248715510cb5d527e57e4e352db14cb0cd`', '依据 Codewhale 0.10.1 源码 `ecbf2869ab9110486a9e1d6d75481d1d7adf8acf`')
+          replace('README.md', '依据 Codewhale `b367f6248715510cb5d527e57e4e352db14cb0cd`', '依据 Codewhale 0.10.1 开发源码 `ecbf2869ab9110486a9e1d6d75481d1d7adf8acf`，并使用 npm 当前稳定版进行原生目录测试')
           replace('README.md', 'Hmbown/Codewhale/blob/b367f6248715510cb5d527e57e4e352db14cb0cd', 'codewhale-hq/Codewhale/blob/ecbf2869ab9110486a9e1d6d75481d1d7adf8acf')
           replace('README.md', '适配器不重试模型 POST；', '会清除子进程中的 `CODEWHALE_PROFILE` / `DEEPSEEK_PROFILE`，并拒绝 `--profile` 覆盖临时配置；不修改父进程环境。适配器不重试模型 POST；')
           replace('README.md', '已执行 36 项测试', '已执行 38 项测试')
@@ -46,7 +46,7 @@ jobs:
       - name: Install the official native host in isolation
         run: |
           npm install --prefix "$RUNNER_TEMP/codewhale-host" codewhale@latest
-          HOST_ROOT="$RUNNER_TEMP/codewhale-host/node_modules/codewhale" node --input-type=commonjs -e 'console.log("LMM_CODEWHALE_BIN=" + require(process.env.HOST_ROOT + "/scripts/install.js").getBinaryPath("codewhale"))' >> "$GITHUB_ENV"
+          HOST_ROOT="$RUNNER_TEMP/codewhale-host/node_modules/codewhale" node --input-type=commonjs -e 'require(process.env.HOST_ROOT + "/scripts/install.js").getBinaryPath("codewhale").then(p=>console.log("LMM_CODEWHALE_BIN="+p)).catch(e=>{console.error(e);process.exitCode=1})' >> "$GITHUB_ENV"
       - name: Verify current native host
         run: npm run test:host
       - name: Commit tested sources only to the upgrade branch
