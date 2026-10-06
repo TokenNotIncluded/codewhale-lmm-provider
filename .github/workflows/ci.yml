@@ -2,18 +2,43 @@ name: Adapter checks
 on: [push, pull_request]
 permissions:
   contents: read
+concurrency:
+  group: codewhale-compatibility-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   test:
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
         node: ['22', '24']
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
       - run: npm run check
       - run: npm test
       - run: npm run pack:check
+  native-host:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        host: ['0.10.0', latest]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install the official host in isolation
+        run: |
+          npm install --prefix "$RUNNER_TEMP/codewhale-host" 'codewhale@${{ matrix.host }}'
+          HOST_ROOT="$RUNNER_TEMP/codewhale-host/node_modules/codewhale" node --input-type=commonjs -e 'require(process.env.HOST_ROOT + "/scripts/install.js").getBinaryPath("codewhale").then(p=>console.log("LMM_CODEWHALE_BIN="+p)).catch(e=>{console.error(e);process.exitCode=1})' >> "$GITHUB_ENV"
+      - run: npm run test:host
