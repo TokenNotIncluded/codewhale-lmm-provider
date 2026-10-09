@@ -1,27 +1,39 @@
 ---
 name: lmm
-description: Help the user sign in to LMM and launch Codewhale using the OAuth companion adapter.
+description: Help users export a reviewed native LMM OAuth provider for Codewhale, or use the legacy companion adapter.
 ---
 
-Use `codewhale-lmm` for the LMM integration. This bundle does not register a
-native provider-auth hook. Do not claim `/login LMM` works inside Codewhale.
+Codewhale PR #6805 added reviewed native provider declarations:
+https://github.com/codewhale-hq/Codewhale/pull/6805
+Check `codewhale auth plugin-login --help` before recommending native mode.
+Do not claim `/login LMM` is a supported command.
 
-The user signs in from their own terminal with `codewhale-lmm login`, approves
-in their browser, then lists `codewhale-lmm models` and launches
-`codewhale-lmm run --model <exact-catalog-id>`. Do not request credentials,
-authorization codes, session files or callback URLs in the conversation.
+For native mode, the user signs in with `codewhale-lmm login`, lists
+`codewhale-lmm models`, and runs `codewhale-lmm export-plugin --model
+<exact-catalog-id> --output <new-directory>`. Install the exported directory,
+not this repository's guidance-only root bundle. Follow the generated README
+for validation, explicit trust, enablement and a fresh Codewhale runtime.
+The user then runs `codewhale auth plugin-login --provider <exported-id>` and
+`codewhale --provider <exported-id>`. Inference uses the declared default model
+without `codewhale-lmm run`, a companion proxy, or temporary host configuration.
 
-`codewhale-lmm status` reads local status without refreshing. `balance` and
-`usage` make read-only LMM requests. `logout` revokes the authorization before
-removing local credentials. `logout --local-only` deletes only local storage;
-it must not be presented as server revocation.
+The exported manifest contains public configuration only. Its fixed group
+header and original wire model come from the authorized Chat Completions
+catalog. Never invent groups, model capabilities, prices or context lengths.
+The model list is a reviewed snapshot, not live discovery or a spending cap.
+Re-export and re-review when changing the selected model or group.
 
-Only offer model/group IDs returned by `models`. Do not invent model prices,
-capabilities, group names or context windows. The current named custom-provider
-route supports Chat Completions, not Responses-only or Messages-only models.
-OAuth refresh tokens and LMM access tokens stay in the companion process, not
-Codewhale's model configuration. Never print or inspect session.json.
+The CLI catalog login and native Codewhale login are separate. Never request,
+print, inspect, copy or transfer access tokens, refresh tokens, authorization
+codes, session.json, callback URLs or the host's credential store.
+`codewhale-lmm status`, `balance` and `usage` address only the CLI login.
+`codewhale-lmm logout` revokes only that CLI grant. `logout --local-only` removes
+only CLI storage. `codewhale auth plugin-logout --provider <id>` removes only
+the host's local credential; remote grant revocation requires server controls.
+Do not describe any local-only action as remote revocation.
 
-If rotation is interrupted, do not retry the old refresh token. Advise logout
-and a new login. After a crashed process, `unlock` refuses to remove a live
-process's lock. Do not bypass Codewhale's plugin review/trust requirements.
+For older hosts use `codewhale-lmm run --model <exact-catalog-id>` after CLI
+login. Interrupted companion rotation must not replay the old refresh token;
+use logout and a new login. `unlock` must not remove a live process's lock.
+Never bypass Codewhale's review/trust boundary. Do not promise Responses-only,
+Messages-only, MCP marketplace, device-code or production acceptance support.

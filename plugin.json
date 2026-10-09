@@ -1,6 +1,6 @@
 {
   "name": "codewhale-lmm-provider",
-  "version": "0.1.0-alpha.2",
-  "description": "LMM OAuth adapter usage and troubleshooting. Provider execution uses the companion codewhale-lmm CLI.",
+  "version": "0.1.0-alpha.3",
+  "description": "LMM native OAuth provider export, setup and troubleshooting; includes legacy companion guidance. Run export-plugin to create a model/group-specific provider bundle.",
   "license": "AGPL-3.0-only"
 }

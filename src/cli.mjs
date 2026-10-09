@@ -6,8 +6,9 @@ import { pathToFileURL } from 'node:url';
 import { OAuth, check, safeMessage } from './oauth.mjs';
 import { SessionStore } from './session.mjs';
 import { catalog, runCodewhale } from './provider.mjs';
+import { exportNativePlugin } from './native.mjs';
 
-const help = `LMM OAuth adapter for Codewhale (Node.js 22+)\n\n  codewhale-lmm login [--no-browser]\n  codewhale-lmm models\n  codewhale-lmm run --model <catalog-id> [-- <codewhale arguments>]\n  codewhale-lmm status | balance | usage\n  codewhale-lmm logout [--local-only]\n  codewhale-lmm unlock\n\nOptions: --issuer <https-origin>\nEnvironment: LMM_ISSUER, LMM_CODEWHALE_HOME, LMM_CODEWHALE_BIN\n\nThis is a companion adapter, not a native /login provider hook.\nThe current custom-provider route supports Chat Completions models only.\n`;
+const help = `LMM native provider exporter and companion adapter for Codewhale (Node.js 22+)\n\n  codewhale-lmm login [--no-browser]\n  codewhale-lmm models\n  codewhale-lmm export-plugin --model <catalog-id> --output <new-directory>\n  codewhale-lmm run --model <catalog-id> [-- <codewhale arguments>]\n  codewhale-lmm status | balance | usage\n  codewhale-lmm logout [--local-only]\n  codewhale-lmm unlock\n\nOptions: --issuer <https-origin>\nEnvironment: LMM_ISSUER, LMM_CODEWHALE_HOME, LMM_CODEWHALE_BIN\n\nexport-plugin uses the native provider capability from Codewhale PR #6805.\nReview and enable the exported bundle, then use codewhale auth plugin-login.\nrun retains the companion bridge for older hosts. Both support Chat Completions only.\n`;
 
 export async function openBrowser(url, noBrowser = false) {
   console.error(`Approve LMM in your browser:\n${url}\n`);
@@ -29,15 +30,20 @@ export async function main(argv = process.argv.slice(2), signal) {
   const own = split < 0 ? argv : argv.slice(0, split);
   const forwarded = split < 0 ? [] : argv.slice(split + 1);
   const { values, positionals } = parseArgs({ args: own, allowPositionals: true, options: {
-    issuer: { type: 'string' }, model: { type: 'string' }, 'no-browser': { type: 'boolean' },
+    issuer: { type: 'string' }, model: { type: 'string' }, output: { type: 'string' }, 'no-browser': { type: 'boolean' },
     'local-only': { type: 'boolean' }, help: { type: 'boolean', short: 'h' },
   } });
   check(positionals.length <= 1, 'Unexpected arguments. Use -- before Codewhale arguments.');
   const command = values.help ? 'help' : positionals[0] || 'help';
-  check(['help', 'login', 'logout', 'models', 'status', 'balance', 'usage', 'run', 'unlock'].includes(command), 'Unknown command. Run codewhale-lmm --help.');
+  check(['help', 'login', 'logout', 'models', 'status', 'balance', 'usage', 'run', 'unlock', 'export-plugin'].includes(command), 'Unknown command. Run codewhale-lmm --help.');
   check(!values['local-only'] || command === 'logout', '--local-only is only valid with logout.');
   check(!values['no-browser'] || command === 'login', '--no-browser is only valid with login.');
-  check(!values.model || command === 'run', '--model is only valid with run.');
+  check(values.model === undefined || ['run', 'export-plugin'].includes(command), '--model is only valid with run or export-plugin.');
+  check(values.output === undefined || command === 'export-plugin', '--output is only valid with export-plugin.');
+  if (command === 'export-plugin') {
+    check(values.model?.length > 0, 'export-plugin requires --model <exact-catalog-id>.');
+    check(values.output?.trim().length > 0, 'export-plugin requires --output <new-directory>.');
+  }
   check(!forwarded.length || command === 'run', 'Only run accepts Codewhale arguments.');
   check(!forwarded.some(arg => /^--(?:provider|model|base-url|api-key|config|config-path|profile)(?:=|$)/.test(arg)), 'Do not override provider/model/credentials/config/profile after --; choose the LMM model with --model.');
   if (command === 'help') { console.log(help); return 0; }
@@ -60,7 +66,7 @@ export async function main(argv = process.argv.slice(2), signal) {
   switch (command) {
     case 'login':
       await store.login(url => openBrowser(url, values['no-browser']), AbortSignal.any([AbortSignal.timeout(180_000), ...(signal ? [signal] : [])]));
-      console.log('LMM login saved. Run codewhale-lmm models, then run --model <ID>.');
+      console.log('LMM catalog login saved. Run codewhale-lmm models, then export-plugin for a native provider or run for the companion bridge.');
       break;
     case 'logout':
       await store.logout(values['local-only'], signal);
@@ -79,6 +85,7 @@ export async function main(argv = process.argv.slice(2), signal) {
       else usageOutput(value);
       break;
     }
+    case 'export-plugin': output(await exportNativePlugin(store, values.model, values.output, signal)); break;
     case 'run': return runCodewhale(store, values.model, forwarded, { signal, binary: process.env.LMM_CODEWHALE_BIN || 'codewhale' });
     case 'unlock': await store.unlock(); console.log('No stale LMM session lock remains.'); break;
   }
