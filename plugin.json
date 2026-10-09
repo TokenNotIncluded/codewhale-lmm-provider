@@ -1,6 +1,30 @@
 {
+  "$schema": "https://agent-plugins.org/schemas/plugin.json",
   "name": "codewhale-lmm-provider",
-  "version": "0.1.0-alpha.3",
-  "description": "LMM native OAuth provider export, setup and troubleshooting; includes legacy companion guidance. Run export-plugin to create a model/group-specific provider bundle.",
-  "license": "AGPL-3.0-only"
+  "version": "0.2.0-alpha.1",
+  "description": "LMM models with Codewhale-owned browser sign-in and live group-bound model discovery.",
+  "license": "AGPL-3.0-only",
+  "extensions": {
+    "net.codewhale": {
+      "providers": {
+        "lmm": {
+          "base_url": "https://api.lmm.best/api/oauth2/openai/v1",
+          "oauth": {
+            "issuer": "https://api.lmm.best",
+            "authorization_endpoint": "https://api.lmm.best/api/oauth2/authorize",
+            "token_endpoint": "https://api.lmm.best/api/oauth2/token",
+            "client_id": "lmm-codewhale",
+            "scopes": [
+              "catalog:read",
+              "balance:read",
+              "usage:read",
+              "models:invoke"
+            ],
+            "resource": "https://api.lmm.best/api/oauth2",
+            "callback_path": "/oauth/lmm/callback"
+          }
+        }
+      }
+    }
+  }
 }

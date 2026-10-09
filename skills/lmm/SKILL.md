@@ -1,39 +1,37 @@
 ---
 name: lmm
-description: Help users export a reviewed native LMM OAuth provider for Codewhale, or use the legacy companion adapter.
+description: Set up and troubleshoot the native LMM provider in Codewhale without handling credentials.
 ---
 
-Codewhale PR #6805 added reviewed native provider declarations:
-https://github.com/codewhale-hq/Codewhale/pull/6805
-Check `codewhale auth plugin-login --help` before recommending native mode.
-Do not claim `/login LMM` is a supported command.
+# LMM native provider
 
-For native mode, the user signs in with `codewhale-lmm login`, lists
-`codewhale-lmm models`, and runs `codewhale-lmm export-plugin --model
-<exact-catalog-id> --output <new-directory>`. Install the exported directory,
-not this repository's guidance-only root bundle. Follow the generated README
-for validation, explicit trust, enablement and a fresh Codewhale runtime.
-The user then runs `codewhale auth plugin-login --provider <exported-id>` and
-`codewhale --provider <exported-id>`. Inference uses the declared default model
-without `codewhale-lmm run`, a companion proxy, or temporary host configuration.
+The bundle registers provider `lmm`. Codewhale owns browser authorization,
+credential storage, refresh and model requests. This skill is guidance only.
 
-The exported manifest contains public configuration only. Its fixed group
-header and original wire model come from the authorized Chat Completions
-catalog. Never invent groups, model capabilities, prices or context lengths.
-The model list is a reviewed snapshot, not live discovery or a spending cap.
-Re-export and re-review when changing the selected model or group.
+After the user reviews and enables the plugin, start a new Codewhale session.
+Ask the user to run `/login lmm`, or select LMM in `/login` or `/provider`.
+The host opens the browser and then the model picker. The user explicitly chooses
+one `group / model` entry. `/model` changes the model. Never silently change groups.
 
-The CLI catalog login and native Codewhale login are separate. Never request,
-print, inspect, copy or transfer access tokens, refresh tokens, authorization
-codes, session.json, callback URLs or the host's credential store.
-`codewhale-lmm status`, `balance` and `usage` address only the CLI login.
-`codewhale-lmm logout` revokes only that CLI grant. `logout --local-only` removes
-only CLI storage. `codewhale auth plugin-logout --provider <id>` removes only
-the host's local credential; remote grant revocation requires server controls.
-Do not describe any local-only action as remote revocation.
+Do not ask the user to paste API keys, tokens, authorization codes, callback URLs
+or credential files. Do not read host or old companion credentials. Do not run
+shell commands to imitate login, accept trust receipts, export another plugin
+or launch a local proxy. Do not issue a model request as an automatic test:
+model requests can create charges.
 
-For older hosts use `codewhale-lmm run --model <exact-catalog-id>` after CLI
-login. Interrupted companion rotation must not replay the old refresh token;
-use logout and a new login. `unlock` must not remove a live process's lock.
-Never bypass Codewhale's review/trust boundary. Do not promise Responses-only,
-Messages-only, MCP marketplace, device-code or production acceptance support.
+`/logout lmm` removes the host's local LMM credential only. For remote revocation,
+the user must use LMM's authorization management page. Bare `/logout` applies to
+the Codewhale account. `/login status` is not an LMM balance or grant display.
+
+If `/login lmm` or `codewhale install` is missing, the host needs the native-login
+changes linked in README. If the native models route returns 404, the server needs
+PR #672. If the catalog is empty, check live authorized groups and model access;
+do not invent model IDs, prices or a default group. After a catalog fetch error,
+use the host's existing provider/model refresh interface, not a second login tool.
+
+Host base: https://github.com/codewhale-hq/Codewhale/pull/6805
+Host contribution (fork review): https://github.com/LIghtJUNction/Codewhale/pull/1
+Server: https://github.com/TokenNotIncluded/api.lmm.best/pull/672
+
+Supported protocol: Chat Completions and its stream. No device-code login,
+Responses-only transport, executable authorization callbacks or MCP permissions.
