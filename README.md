@@ -1,111 +1,153 @@
 # Codewhale LMM Provider
 
-通过 LMM 网页授权登录，在 Codewhale 中使用 LMM 的模型与分组，不需要复制 API Key。
+安装一次，在 Codewhale 中运行 `/login lmm`，用浏览器授权，然后选择模型。
+不需要复制 API Key，不需要另一个登录程序，也不运行本地代理。
 
-**当前版本：0.1.0-alpha.2。** 这是 OAuth 伴随适配器，不是 Codewhale 原生 `/login` provider 插件。依据 Codewhale 0.10.1 开发源码 `ecbf2869ab9110486a9e1d6d75481d1d7adf8acf`，并使用 npm 当前稳定版进行原生目录测试 的插件和自定义 provider 接口实现。该版本的插件接口不能注册模型提供商或 OAuth 回调，因此使用独立 CLI 完成授权，通过临时本地 provider 连接 Codewhale；`plugin.json` 提供可选的使用说明 skill。
+**源码版本：0.2.0-alpha.1。尚未发布到 npm。** 本版按新的原生接口开发，
+不兼容旧版 Codewhale。下面的使用流程需要宿主改动和服务端改动都可用；
+PR 存在不代表已合并、已发布或已部署。
 
-目前支持目录中声明 `openai-completions` 的模型、工具调用请求与 SSE 透传。**不支持 Responses-only、Anthropic Messages-only 模型，也未移植 Pi 的 MCP、市场工具和原生模型选择器集成。** 不会伪造模型能力、上下文长度或价格。
+## 依赖与改动来源
+
+[Codewhale 上游 PR #6805](https://github.com/codewhale-hq/Codewhale/pull/6805)
+已于 2026-10-06 合并，提供原生 Provider 声明、浏览器授权和宿主管理的令牌。
+
+本版还依赖以下改动：
+
+- [Codewhale 安装与 `/login` 改进](https://github.com/LIghtJUNction/Codewhale/pull/1)。
+  这是用户 fork 中的审查 PR，目标是提交给上游。当前连接向官方仓库创建 PR
+  返回 403，不能把它称为已提交或已合并的上游 PR。
+  [官方仓库对比入口](https://github.com/codewhale-hq/Codewhale/compare/main...LIghtJUNction:Codewhale:feat/native-plugin-login-install)。
+- [LMM 服务端 PR #672](https://github.com/TokenNotIncluded/api.lmm.best/pull/672)，
+  提供带分组约束的标准模型目录和请求入口。
+- [本插件 PR #3](https://github.com/TokenNotIncluded/codewhale-lmm-provider/pull/3)，
+  将原来的导出器替换为固定的原生插件，并删除旧登录和代理代码。
+
+安装入口参考 [Pi 的包安装方式](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/packages.md)，
+登录入口参考 [Pi 的自定义 Provider](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/custom-provider.md)。
+这是原生 Codewhale 声明，不执行 Pi 的 TypeScript 扩展。
 
 ## 安装
 
-需要 Node.js 22+ 和已经安装的官方 `codewhale` 可执行程序。本包没有第三方运行时依赖。
-
-克隆独立仓库后安装：
+先确认 Codewhale 构建包含上述安装与登录改动：
 
 ```sh
-git clone https://github.com/TokenNotIncluded/codewhale-lmm-provider.git
-cd codewhale-lmm-provider
-npm install --global .
+codewhale install --help
 ```
 
-也可以不做全局安装，直接运行 `node src/cli.mjs --help`。父项目以 Git submodule 引用同一份源码。
-
-## 使用
+改动合并到插件主分支后，直接安装：
 
 ```sh
-codewhale-lmm login
-codewhale-lmm models
-codewhale-lmm run --model '<models 输出的完整 id>'
+codewhale install git:github.com/TokenNotIncluded/codewhale-lmm-provider
 ```
 
-登录打开 LMM 授权页；回到终端后即可使用。模型 ID 包含分组，不能用上游模型名替代；多个模型时不会静默选择第一个。
+审查期间可先检出本 PR，再从本地安装：
 
 ```sh
-codewhale-lmm run --model '<完整 id>' -- exec '检查这个项目的测试'
-codewhale-lmm status
-codewhale-lmm balance
-codewhale-lmm usage
-codewhale-lmm logout
+git clone --branch feat/native-oauth-provider-6805 https://github.com/TokenNotIncluded/codewhale-lmm-provider.git
+codewhale install ./codewhale-lmm-provider
 ```
 
-`status` 只读本地状态；`balance` 和 `usage` 读取 LMM 账户余额与授权允许的日聚合用量。未知价格保持 `null`，不是免费。
+不需要 `npm install`。本插件没有可执行入口、运行时依赖或安装脚本。
+宿主新增的 `npm:包名@精确版本` 安装方式同样适用于原生插件包，但本版本
+尚未发布，因此这里不提供尚不可用的 npm 安装命令。
 
-启动时创建临时 provider 配置，设置 `CODEWHALE_CONFIG_PATH`，并传入临时本地连接凭据。不会覆盖用户原有配置，也不会继承原配置中的自定义运行设置。关闭 Codewhale 后清理本地监听和临时配置。会清除子进程中的 `CODEWHALE_PROFILE` / `DEEPSEEK_PROFILE`，并拒绝 `--profile` 覆盖临时配置；不修改父进程环境。适配器不重试模型 POST；Codewhale 自身的重试策略仍由宿主管理。
-
-可选环境变量：
-
-| 变量 | 用途 |
-| --- | --- |
-| `LMM_ISSUER` | 默认 `https://api.lmm.best`；也可用 `--issuer` |
-| `LMM_CODEWHALE_HOME` | 独立凭据目录，默认 `$CODEWHALE_HOME/lmm-provider` 或 `~/.codewhale/lmm-provider` |
-| `LMM_CODEWHALE_BIN` | 官方 Codewhale 可执行文件路径 |
-
-Termux 优先用 `termux-open-url` 打开浏览器。`login --no-browser` 仅输出授权 URL，仍需浏览器能访问当前机器的回环回调；这不是 device-code 登录，不能直接解决远程 SSH 的浏览器回调问题。
-
-## 可选的 Codewhale 插件说明
-
-在 Codewhale 会话中执行：
+安装完成后，在 Codewhale 会话中执行：
 
 ```text
-/plugin install .
 /plugin validate codewhale-lmm-provider
+/plugin trust codewhale-lmm-provider
+```
+
+检查屏幕显示的域名、权限和插件内容。按宿主显示的完整确认命令完成审查，
+再启用：
+
+```text
 /plugin enable codewhale-lmm-provider
 ```
 
-按 Codewhale 显示的内容与权限哈希自行审查、信任，再启用。这里安装的是帮助 skill；它不会自动运行登录，也不能替代 `codewhale-lmm run`。不写入或绕过宿主的信任记录。
+启用或更新 Provider 后，重新启动 Codewhale。安装不会自动信任插件，
+也不会自动取得账号授权。以后无需反复安装；内容变更仍须重新审查。
 
-## 服务端接入
+## 登录和使用
 
-父项目必须先部署 `lmm-codewhale` 客户端注册补丁。该客户端使用授权码 + PKCE S256，独立于 `lmm-pi` / `lmm-dsh`。初始 scope 仅为：
+在 Codewhale 内执行：
 
 ```text
-catalog:read balance:read usage:read models:invoke
+/login lmm
 ```
 
-分组权限由用户同意时的服务端快照追加。没有 MCP、市场工具或账户管理权限。授权码、刷新和撤销均绑定此客户端。
+也可以输入 `/login` 或 `/provider`，在列表中选择 `lmm`。宿主打开浏览器，
+你在 LMM 页面确认账号、权限和分组。只需这一次授权。
 
-保留既有 `OAUTH_SERVER_ENABLED`、issuer 和分组白名单门槛，不自动启用或部署生产 OAuth。旧服务端尚未登记新客户端时登录会失败，不能拿 Pi 的 client ID 顶替。
+授权成功后，宿主读取当前账号的模型目录并打开模型选择。名称显示为
+“分组 / 模型”。选择后开始使用；以后用 `/model` 切换。没有预选的默认模型，
+不会静默选择第一个分组，也不会在某组失败后换成另一组。
 
-## 凭据与故障恢复
+浏览器授权期间宿主会暂时暂停终端界面，返回后恢复。
+浏览器必须能访问运行 Codewhale 的机器上的回环地址；这不是远程 SSH
+设备码登录。拒绝授权时不会导入任何旧凭据。
 
-OAuth access/refresh token 保存在适配器私有目录，不进入 Codewhale 的配置、命令行或环境。凭据文件为 POSIX `0600`，目录为 `0700`；不安全权限会拒绝使用。不同 issuer 不能混用存储目录。相同 OS 用户仍能读取文件；这不是与 Codewhale 进程隔离的系统沙箱。Windows 的独立 ACL 保护尚未实现，请不要将此预览版用于共享 Windows 主机。
+模型目录为空时，检查账号已授权的分组和服务端是否有可用模型。
+目录返回 404 时，先确认服务端 PR #672 已部署。
+授权成功但目录读取失败时，不必再运行任何外部登录程序；回到 `/provider`
+选择 LMM，并使用模型界面现有的刷新操作。
 
-刷新以跨进程锁串行执行；请求前原子写入 `refresh_pending`，成功后原子替换整对令牌。发生响应丢失或崩溃时停止自动刷新，不重放可能已消费的 refresh token。重新授权前先 `logout`；无法完成远端撤销时，本地凭据会保留。明确使用 `logout --local-only` 只删除本地文件，**不代表服务端授权已撤销**。锁的拥有者已退出时可用 `unlock` 清理；不会抢占活跃进程的锁。
+## 退出和权限
 
-本地桥只监听 `127.0.0.1` 随机端口，要求随机 Bearer，拒绝浏览器 Origin、任意上游、未授权分组和不支持的路径。上游只收到 OAuth Bearer、目录给出的 `X-LMM-Group` 与原协议请求；错误不回显服务端响应体或凭据，断开客户端时取消流式请求。
+```text
+/logout lmm
+```
 
-## 验证
+只删除 Codewhale 中 LMM 的本机登录凭据，不退出 Codewhale 账号，
+也不撤销服务端授权。撤销远端访问须到 LMM 的授权管理页面操作。
+`/login status` 保留 Codewhale 账号状态显示，不是 LMM 余额查询。
+
+OAuth 令牌只由 Codewhale 保存和刷新。插件、说明 skill 和模型对话都不接收
+令牌。不要在聊天、问题报告或日志中粘贴授权码、回调 URL 或凭据文件。
+
+服务端继续检查实时授权、分组和模型可用性，并使用原有计费流程。
+选择一个模型不等于设置消费上限。未知价格不代表免费。
+
+## 旧版本迁移
+
+本版已删除旧 CLI 的登录、会话存储、代理、模型导出、余额与用量命令，
+没有兼容分支或自动回退。不再安装或运行 `codewhale-lmm`。
+
+卸载旧的全局伴随程序，并在 LMM 授权管理中撤销不再使用的旧授权。
+停用或卸载旧的每用户生成插件，再安装本版。不要把旧会话文件复制到宿主，
+也不要复用旧插件的审查记录。本版不会自行读取、迁移或删除旧凭据。
+余额与用量可在 LMM 网站查看。
+
+## 接口范围
+
+固定 Provider ID 为 `lmm`，部署地址为 `https://api.lmm.best`。
+宿主调用 `/api/oauth2/openai/v1/models` 获取分组绑定的模型 ID，再将该 ID
+传给同一前缀下的 `/chat/completions`。分组转换留在服务端，宿主不需要
+LMM 专用补丁或公开分组请求头。
+
+当前只支持 Chat Completions，包括其流式路径；不宣称支持 Responses-only、
+Anthropic Messages-only、MCP 市场工具、设备码授权或远端撤销。
+初始权限沿用公共客户端 `lmm-codewhale` 的四项：`catalog:read`、
+`balance:read`、`usage:read`、`models:invoke`。分组权限由服务端在用户同意后追加。
+
+协议依据：[LMM OAuth contract](https://github.com/TokenNotIncluded/api.lmm.best/blob/main/apps/api-go/service/oauth_contract.md)。
+
+## 开发检查
+
+仅开发检查需要 Node.js 22 或更新版本：
 
 ```sh
 npm test
 npm run check
 npm run pack:check
-# 官方原生宿主，只测试本地 OAuth 和模型目录，不调用生产推理
-LMM_CODEWHALE_BIN=/absolute/path/to/codewhale npm run test:host
 ```
 
-本地 Linux / Node.js 22.16.0 已执行 38 项测试，全部通过，包括真实 HTTP 回环 PKCE、跨进程刷新互斥、崩溃日志、撤销失败保留、分组隔离、SSE 与取消、临时配置清理，以及模拟宿主进程调用本地桥。模拟宿主不是官方 Codewhale 二进制；尚未完成真实生产授权、Codewhale TUI、账单核对或 Windows/Termux 实机验收。Go 注册测试已在父项目首轮 GitHub CI 通过；本地没有运行 Go 依赖环境。
+测试检查原生声明、公开地址、权限、包内容和旧程序移除情况。它们不读取
+用户凭据，也不调用生产服务。静态检查不能替代真实宿主的安装、审查、
+浏览器授权、模型刷新、流式请求、取消、撤销和账单验收。
 
-## 独立仓库与子模块
+父项目通过 `packages/codewhale-lmm-provider` 子模块引用本仓库。合并本插件
+并通过验收后，再单独更新子模块指针；不要复制另一份实现。
 
-本仓库是 Codewhale LMM Provider 的独立源码仓库。父项目 `TokenNotIncluded/api.lmm.best` 通过 `packages/codewhale-lmm-provider` Git submodule 固定版本；服务端 OAuth 客户端注册仍由父项目维护和部署。
-
-修改适配器时先在本仓库提交并通过 CI，再更新父项目中的 submodule 指针。不要在父项目目录中复制出第二份源码。
-
-## 接口依据
-
-- https://github.com/codewhale-hq/Codewhale/blob/ecbf2869ab9110486a9e1d6d75481d1d7adf8acf/docs/PLUGIN_BUNDLES.md
-- https://github.com/codewhale-hq/Codewhale/blob/ecbf2869ab9110486a9e1d6d75481d1d7adf8acf/docs/CONFIGURATION.md
-- https://github.com/TokenNotIncluded/api.lmm.best/blob/main/apps/api-go/service/oauth_contract.md
-
-AGPL-3.0-only. 本项目不隶属于 Codewhale。
+AGPL-3.0-only。本项目不隶属于 Codewhale。
