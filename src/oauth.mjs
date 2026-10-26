@@ -162,6 +162,10 @@ export class OAuth {
       Array.isArray(auth.response_types_supported) && auth.response_types_supported.includes('code'), 'LMM must support PKCE S256 and issuer-bound authorization responses.');
     check(resource.resource === this.resource && Array.isArray(resource.authorization_servers) &&
       resource.authorization_servers.length === 1 && resource.authorization_servers[0] === this.issuer, 'Protected-resource metadata does not match LMM.');
+    check(Array.isArray(auth.lmm_client_ids_supported) &&
+      auth.lmm_client_ids_supported.every(client => typeof client === 'string') &&
+      auth.lmm_client_ids_supported.includes(CLIENT_ID),
+    'This LMM server has not enabled Codewhale sign-in yet. Update the LMM server, then run codewhale-lmm login again.');
   }
   parseTokens(response, startedAt, previous) {
     check(response.token_type === 'Bearer');

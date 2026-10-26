@@ -6,7 +6,7 @@
   "license": "AGPL-3.0-only",
   "engines": { "node": ">=22" },
   "bin": { "codewhale-lmm": "./src/cli.mjs" },
-  "files": ["src", "skills", "plugin.json", "README.md", "LICENSE"],
+  "files": ["assets", "src", "skills", "plugin.json", "README.md", "LICENSE"],
   "scripts": {
     "test": "node --test test/*.test.mjs",
     "test:host": "node --test test/native-host.mjs",

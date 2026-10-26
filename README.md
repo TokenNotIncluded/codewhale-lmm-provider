@@ -1,8 +1,10 @@
 # Codewhale LMM Provider
 
+<img src="https://raw.githubusercontent.com/TokenNotIncluded/codewhale-lmm-provider/main/assets/icon.svg" alt="LMM for Codewhale" width="128" height="128" />
+
 通过 LMM 网页授权登录，在 Codewhale 中使用 LMM 的模型与分组，不需要复制 API Key。
 
-**当前版本：0.1.0-alpha.2。** 这是 OAuth 伴随适配器，不是 Codewhale 原生 `/login` provider 插件。依据 Codewhale 0.10.1 开发源码 `ecbf2869ab9110486a9e1d6d75481d1d7adf8acf`，并使用 npm 当前稳定版进行原生目录测试 的插件和自定义 provider 接口实现。该版本的插件接口不能注册模型提供商或 OAuth 回调，因此使用独立 CLI 完成授权，通过临时本地 provider 连接 Codewhale；`plugin.json` 提供可选的使用说明 skill。
+**当前版本：0.1.0-alpha.2。** 这是 OAuth 伴随适配器，不是 Codewhale 原生 `/login` provider 插件。依据 Codewhale 0.10.1 开发源码 `ecbf2869ab9110486a9e1d6d75481d1d7adf8acf` 的插件和自定义 provider 接口实现。该版本的插件接口不能注册模型提供商或 OAuth 回调，因此使用独立 CLI 完成授权，通过临时本地 provider 连接 Codewhale；`plugin.json` 提供可选的使用说明 skill。
 
 目前支持目录中声明 `openai-completions` 的模型、工具调用请求与 SSE 透传。**不支持 Responses-only、Anthropic Messages-only 模型，也未移植 Pi 的 MCP、市场工具和原生模型选择器集成。** 不会伪造模型能力、上下文长度或价格。
 
@@ -74,7 +76,7 @@ catalog:read balance:read usage:read models:invoke
 
 分组权限由用户同意时的服务端快照追加。没有 MCP、市场工具或账户管理权限。授权码、刷新和撤销均绑定此客户端。
 
-保留既有 `OAUTH_SERVER_ENABLED`、issuer 和分组白名单门槛，不自动启用或部署生产 OAuth。旧服务端尚未登记新客户端时登录会失败，不能拿 Pi 的 client ID 顶替。
+保留既有 `OAUTH_SERVER_ENABLED`、issuer 和分组白名单门槛，不自动启用或部署生产 OAuth。适配器要求授权服务器元数据的 `lmm_client_ids_supported` 包含 `lmm-codewhale`；旧服务端未登记或未声明此客户端时，在打开浏览器前给出更新提示，不会拿 Pi 的 client ID 顶替。
 
 ## 凭据与故障恢复
 
@@ -94,7 +96,7 @@ npm run pack:check
 LMM_CODEWHALE_BIN=/absolute/path/to/codewhale npm run test:host
 ```
 
-本地 Linux / Node.js 22.16.0 已执行 38 项测试，全部通过，包括真实 HTTP 回环 PKCE、跨进程刷新互斥、崩溃日志、撤销失败保留、分组隔离、SSE 与取消、临时配置清理，以及模拟宿主进程调用本地桥。模拟宿主不是官方 Codewhale 二进制；尚未完成真实生产授权、Codewhale TUI、账单核对或 Windows/Termux 实机验收。Go 注册测试已在父项目首轮 GitHub CI 通过；本地没有运行 Go 依赖环境。
+本地 41 项测试全部通过，覆盖真实 HTTP 回环 PKCE、客户端注册检查、跨进程刷新互斥、崩溃日志、撤销失败保留、分组隔离、SSE 与取消、临时配置清理，以及模拟宿主进程调用本地桥。模拟宿主不是官方 Codewhale 二进制；本轮未运行官方宿主测试，尚未完成真实生产授权、Codewhale TUI、账单核对或 Windows/Termux 实机验收。
 
 ## 独立仓库与子模块
 

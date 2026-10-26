@@ -56,6 +56,20 @@ test('discovery endpoint mismatch fails before opening a browser', async () => {
   assert.equal(opened, false);
 });
 
+test('discovery requires this client registration before opening a browser or storing login', async t => {
+  const f = await fixture(t);
+  for (const clients of [undefined, null, [], 'lmm-codewhale', ['lmm-pi'], [CLIENT_ID, 7]]) {
+    f.state.clients = clients;
+    let opened = false;
+    await assert.rejects(f.store.login(() => { opened = true; }), /has not enabled Codewhale sign-in/);
+    assert.equal(opened, false);
+    assert.equal(await f.store.read(), null);
+    assert.equal(f.state.authorizations.size, 0);
+  }
+  f.state.clients = ['lmm-pi', CLIENT_ID];
+  assert.equal((await f.store.login(f.approve)).client_id, CLIENT_ID);
+});
+
 test('HTTP credentials are not forwarded across redirects', async t => {
   const f = await fixture(t);
   let options;

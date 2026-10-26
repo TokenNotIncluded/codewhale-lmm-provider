@@ -12,7 +12,7 @@ export async function fixture(t) {
   const modelID = `lmm:${groupID}:${Buffer.from('example-model').toString('base64url')}`;
   const scope = [...SCOPES, `group:${groupID}`].join(' ');
   const state = { authorizations: new Map(), refreshes: 0, invocations: [], revocations: 0, expires: 3600,
-    refreshFailure: false, revokeFailure: false, inferenceFailure: false, stream: false, streamClosed: false, grants: scope };
+    refreshFailure: false, revokeFailure: false, inferenceFailure: false, stream: false, streamClosed: false, grants: scope, clients: [CLIENT_ID] };
   let issuer;
   const json = (res, status, data) => { res.writeHead(status, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(data)); };
   const tokenResponse = n => ({ token_type: 'Bearer', access_token: `lmm_at_access${n}`, refresh_token: `lmm_rt_refresh${n}`, expires_in: state.expires, scope: state.grants });
@@ -23,7 +23,8 @@ export async function fixture(t) {
     const raw = Buffer.concat(chunks).toString('utf8');
     if (url.pathname === '/.well-known/oauth-authorization-server') {
       json(res, 200, { issuer, authorization_endpoint: `${issuer}/api/oauth2/authorize`, token_endpoint: `${issuer}/api/oauth2/token`,
-        revocation_endpoint: `${issuer}/api/oauth2/revoke`, code_challenge_methods_supported: ['S256'], response_types_supported: ['code'], authorization_response_iss_parameter_supported: true });
+        revocation_endpoint: `${issuer}/api/oauth2/revoke`, code_challenge_methods_supported: ['S256'], response_types_supported: ['code'], authorization_response_iss_parameter_supported: true,
+        lmm_client_ids_supported: state.clients });
     } else if (url.pathname === '/.well-known/oauth-protected-resource/api/oauth2') {
       json(res, 200, { resource: `${issuer}/api/oauth2`, authorization_servers: [issuer] });
     } else if (url.pathname === '/api/oauth2/authorize') {
