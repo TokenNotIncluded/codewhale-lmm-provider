@@ -69,7 +69,7 @@ export async function main(argv = process.argv.slice(2), signal) {
     case 'status': output(await store.status(signal)); break;
     case 'models': {
       const { models } = await catalog(store, signal);
-      output(models.map(({ id, name, group, upstream_model, pricing }) => ({ id, name, group, upstream_model, pricing })));
+      output(models);
       break;
     }
     case 'balance': case 'usage': {

@@ -104,8 +104,42 @@ test('catalog refuses groups outside the persisted grant and preserves unknown p
   const raw = await f.oauth.request('/api/oauth2/catalog', { access: session.access });
   assert.throws(() => parseCatalog(raw, { ...session, scope: 'catalog:read' }), /outside/);
   raw.models[0].apis = ['anthropic-messages', 'openai-responses'];
-  assert.deepEqual(parseCatalog(raw, session), []);
+  raw.models[0].native_cost = null;
+  raw.models[0].context_window = null;
+  assert.deepEqual(parseCatalog(raw, session), raw.models);
 });
+test('all authorized models and exact metadata remain visible while unsupported protocols cannot invoke', async t => {
+  const f = await bridgeFixture(t);
+  const { session } = await catalog(f.store);
+  const raw = await f.oauth.request('/api/oauth2/catalog', { access: session.access });
+  const chat = raw.models[0];
+  const other = { ...chat, upstream_model: 'messages-only',
+    id: `lmm:${f.groupID}:${Buffer.from('messages-only').toString('base64url')}`,
+    apis: ['anthropic-messages'], native_cost: null,
+    pricing: { currency: 'USD', unit: 'per_1m_tokens', price_basis: 'effective_user_rates', input: null, output: 0.25, request: null } };
+  const unknown = { ...other, upstream_model: 'unknown-api',
+    id: `lmm:${f.groupID}:${Buffer.from('unknown-api').toString('base64url')}`, apis: [] };
+  f.state.models = [chat, other, unknown];
+  assert.deepEqual((await catalog(f.store)).models, f.state.models);
+  const listing = await (await f.request('/models')).json();
+  assert.deepEqual(listing.data, f.state.models.map(model => ({ ...model, object: 'model', owned_by: 'lmm' })));
+  for (const model of [other, unknown]) {
+    const response = await f.invoke({ model: model.id });
+    assert.equal(response.status, 502);
+    assert.match((await response.json()).error.message, /only supports Chat Completions/);
+    await assert.rejects(runCodewhale(f.store, model.id, [], { binary: join(f.home, 'missing') }), /only supports Chat Completions/);
+  }
+  assert.equal(f.state.invocations.length, 0);
+  assert.equal((await readdir(f.home)).filter(p => p.startsWith('run-')).length, 0);
+  assert.equal((await f.invoke()).status, 200);
+  assert.equal(f.state.invocations.length, 1);
+  // A removed model is no longer listed or invokable, even on the same bridge.
+  f.state.models = [chat];
+  assert.deepEqual((await (await f.request('/models')).json()).data.map(model => model.id), [chat.id]);
+  assert.equal((await f.invoke({ model: other.id })).status, 502);
+  assert.equal(f.state.invocations.length, 1);
+});
+
 test('model selection is exact and never chooses the first of multiple models', () => {
   assert.throws(() => selectModel([], undefined));
   assert.throws(() => selectModel([{ id: 'a' }, { id: 'b' }], undefined));

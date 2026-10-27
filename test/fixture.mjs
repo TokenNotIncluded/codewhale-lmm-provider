@@ -54,7 +54,7 @@ export async function fixture(t) {
     } else if (url.pathname === '/api/oauth2/catalog') {
       if (!req.headers.authorization?.startsWith('Bearer lmm_at_')) { json(res, 401, {}); return; }
       json(res, 200, { schema_version: 1, resource: `${issuer}/api/oauth2`, groups: [{ id: groupID, name: 'default', scope: `group:${groupID}` }],
-        models: [{ id: modelID, group_id: groupID, group: 'default', upstream_model: 'example-model', name: 'Example model', apis: ['openai-completions'], pricing: { input: null, output: null } }] });
+        models: state.models ?? [{ id: modelID, group_id: groupID, group: 'default', upstream_model: 'example-model', name: 'Example model', apis: ['openai-completions'], pricing: { input: null, output: null } }] });
     } else if (url.pathname === '/api/oauth2/revoke') {
       if (state.revokeFailure) { json(res, 503, { error: 'SECRET_MUST_NOT_LEAK' }); return; }
       state.revocations++;

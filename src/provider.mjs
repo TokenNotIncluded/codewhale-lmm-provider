@@ -27,9 +27,8 @@ export function parseCatalog(value, session) {
     check(model.id === `lmm:${group.id}:${Buffer.from(model.upstream_model).toString('base64url')}` && !seen.has(model.id));
     seen.add(model.id);
     check(Array.isArray(model.apis) && model.apis.every(api => typeof api === 'string'));
-    // Codewhale's documented named custom-provider interface is Chat Completions.
-    // Do not silently route a Responses/Messages-only model through a different wire API.
-    if (model.apis.includes('openai-completions')) models.push(model);
+    // Visibility follows the login grant; host wire support is checked at invocation.
+    models.push(model);
   }
   return models;
 }
@@ -41,11 +40,15 @@ export async function catalog(store, signal) {
 export function selectModel(models, id) {
   if (id) {
     const selected = models.find(model => model.id === id);
-    check(selected, 'That model/group is not available on the Chat Completions route. Run models and use an exact ID.');
+    check(selected, 'That model/group is not in the authorized catalog. Run models and use an exact ID.');
     return selected;
   }
   check(models.length === 1, 'Choose an explicit model/group with --model <ID>; run codewhale-lmm models to list IDs.');
   return models[0];
+}
+function requireChatCompletions(model) {
+  check(model.apis.includes('openai-completions'), 'This authorized model is visible in the catalog, but Codewhale only supports Chat Completions through this adapter. Choose a model whose apis includes openai-completions.');
+  return model;
 }
 function equalSecret(value, expected) {
   if (typeof value !== 'string') return false;
@@ -85,11 +88,12 @@ export async function startBridge(store, { timeoutMs = 600_000 } = {}) {
       }
       const { session, models } = await catalog(store, signal);
       if (list) {
-        json(res, 200, { object: 'list', data: models.map(model => ({ id: model.id, object: 'model', owned_by: 'lmm' })) });
+        // Preserve catalog metadata verbatim; unknown costs/capabilities stay unknown.
+        json(res, 200, { object: 'list', data: models.map(model => ({ ...model, object: 'model', owned_by: 'lmm' })) });
         return;
       }
       check(scopes(session.scope).includes('models:invoke'), 'This login no longer permits model invocation.');
-      const model = selectModel(models, body.model);
+      const model = requireChatCompletions(selectModel(models, body.model));
       check(body.model === model.id, 'Each request must name an exact model/group ID.');
       // Re-read grants for every request. There is no cross-group fallback and no POST retry.
       const upstream = await store.oauth.fetch(`${store.oauth.issuer}/v1/chat/completions`, {
@@ -151,7 +155,7 @@ export function childEnvironment(configPath, secret, source = process.env) {
   return env;
 }
 export async function runCodewhale(store, modelID, args = [], { binary = 'codewhale', signal } = {}) {
-  const selected = selectModel((await catalog(store, signal)).models, modelID);
+  const selected = requireChatCompletions(selectModel((await catalog(store, signal)).models, modelID));
   const bridge = await startBridge(store);
   let directory;
   try {
