@@ -183,3 +183,21 @@ await writeFile(${JSON.stringify(receipt)}, JSON.stringify({args:process.argv.sl
   assert.equal(f.state.invocations.length, 1);
   assert.equal((await readdir(f.home)).filter(p => p.startsWith('run-')).length, 0);
 });
+
+test('model discovery refreshes server metadata, additions and removals without generation', async t => {
+  const f = await bridgeFixture(t);
+  const row = (await catalog(f.store)).models[0];
+  const metadata = {context_window:128000,max_input_tokens:100000,max_output_tokens:16000,
+    input_modalities:['text'],output_modalities:['text'],reasoning:true,tool_call:true,source:'server'};
+  f.state.models = [{...row,metadata,pricing:{currency:'USD',unit:'million_tokens',input:1,output:2,cache_write:null,group_multiplier:2,trust_multiplier:0.5}}];
+  const first = (await (await f.request('/models')).json()).data[0];
+  assert.deepEqual(first.metadata,metadata);
+  assert.equal(first.pricing.input,1);
+  assert.equal(first.pricing.cache_write,null);
+  f.state.models = [{...f.state.models[0],metadata:{...metadata,context_window:64000}}];
+  assert.equal((await (await f.request('/models')).json()).data[0].metadata.context_window,64000);
+  f.state.models = [];
+  assert.deepEqual((await (await f.request('/models')).json()).data,[]);
+  assert.equal((await f.invoke()).status,502);
+  assert.equal(f.state.invocations.length,0);
+});

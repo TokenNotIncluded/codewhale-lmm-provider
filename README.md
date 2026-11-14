@@ -1,5 +1,7 @@
 # Codewhale LMM Provider
 
+Current server metadata behavior: [Dynamic OAuth catalog](DYNAMIC_CATALOG.md). Server metadata takes precedence over the legacy snapshot behavior described below.
+
 <img src="https://raw.githubusercontent.com/TokenNotIncluded/codewhale-lmm-provider/main/assets/icon.svg" alt="LMM for Codewhale" width="128" height="128" />
 
 通过 LMM 网页授权登录，在 Codewhale 中使用 LMM 的模型与分组，不需要复制 API Key。
