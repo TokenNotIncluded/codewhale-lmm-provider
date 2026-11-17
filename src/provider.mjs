@@ -30,7 +30,7 @@ export function parseCatalog(value, session, references = peekModelsDev()) {
     check(Array.isArray(model.apis) && model.apis.every(api => typeof api === 'string'));
     // Visibility follows the login grant; host wire support is checked at invocation.
     const reference = references.resolve(model.upstream_model);
-    if (!reference) { models.push(model); continue; }
+    if (!reference) { models.push(withChatSupport(model)); continue; }
     const source = model.metadata && typeof model.metadata === 'object' && !Array.isArray(model.metadata) ? model.metadata : {};
     const fallback = {
       context_window: reference.limit.context || null,
@@ -42,8 +42,8 @@ export function parseCatalog(value, session, references = peekModelsDev()) {
       tool_call: reference.tool_call,
     };
     const metadata = Object.fromEntries(Object.entries(fallback).map(([key, value]) => [key, source[key] ?? value]));
-    models.push({ ...model, metadata: { ...source, ...metadata, source: source.source ? `${source.source}; ${reference.source}` : reference.source },
-      metadata_reference: { source: reference.source, id: reference.id, provider: reference.provider } });
+    models.push(withChatSupport({ ...model, metadata: { ...source, ...metadata, source: source.source ? `${source.source}; ${reference.source}` : reference.source },
+      metadata_reference: { source: reference.source, id: reference.id, provider: reference.provider, ...(reference.type ? { type: reference.type } : {}) } }));
   }
   return models;
 }
@@ -64,8 +64,22 @@ export function selectModel(models, id) {
   check(models.length === 1, 'Choose an explicit model/group with --model <ID>; run codewhale-lmm models to list IDs.');
   return models[0];
 }
+export function chatUnsupportedReason(model) {
+  const type = model.metadata_reference?.type;
+  if (type && type !== 'chat') return `This authorized ${type} model is listed for discovery, but the Codewhale text-chat bridge cannot invoke it.`;
+  const input = model.metadata?.input_modalities, output = model.metadata?.output_modalities;
+  if ((Array.isArray(input) && !input.includes('text')) || (Array.isArray(output) && !output.includes('text')))
+    return 'This authorized model is listed for discovery, but its known modalities do not support text chat.';
+  return undefined;
+}
+function withChatSupport(model) {
+  const reason = chatUnsupportedReason(model);
+  return reason ? { ...model, chat_unsupported_reason: reason } : model;
+}
 function requireChatCompletions(model) {
   check(model.apis.includes('openai-completions'), 'This authorized model is visible in the catalog, but Codewhale only supports Chat Completions through this adapter. Choose a model whose apis includes openai-completions.');
+  const reason = chatUnsupportedReason(model);
+  check(!reason, reason);
   return model;
 }
 function equalSecret(value, expected) {

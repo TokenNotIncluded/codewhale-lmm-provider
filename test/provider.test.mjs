@@ -201,3 +201,16 @@ test('model discovery refreshes server metadata, additions and removals without 
   assert.equal((await f.invoke()).status,502);
   assert.equal(f.state.invocations.length,0);
 });
+
+test('a declared specialized model remains listed but cannot invoke the text-chat bridge', async t => {
+  const f = await bridgeFixture(t);
+  const { models } = await catalog(f.store);
+  f.state.models = [{...models[0], metadata_reference:{type:'embedding'},metadata:{input_modalities:['text'],output_modalities:['text']}}];
+  const listed = (await (await f.request('/models')).json()).data;
+  assert.equal(listed.length,1);
+  assert.match(listed[0].chat_unsupported_reason,/embedding/);
+  const response = await f.invoke();
+  assert.equal(response.status,502);
+  assert.match((await response.json()).error.message,/embedding/);
+  assert.equal(f.state.invocations.length,0);
+});
