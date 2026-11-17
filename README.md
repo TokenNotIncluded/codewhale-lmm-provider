@@ -1,12 +1,14 @@
 # Codewhale LMM Provider
 
-Current server metadata behavior: [Dynamic OAuth catalog](DYNAMIC_CATALOG.md). Server metadata takes precedence over the legacy snapshot behavior described below.
+Model discovery and cached metadata: [Dynamic OAuth catalog](DYNAMIC_CATALOG.md). The account catalog determines availability; server metadata takes priority over public references.
 
 <img src="https://raw.githubusercontent.com/TokenNotIncluded/codewhale-lmm-provider/main/assets/icon.svg" alt="LMM for Codewhale" width="128" height="128" />
 
 通过 LMM 网页授权登录，在 Codewhale 中使用 LMM 的模型与分组，不需要复制 API Key。
 
-**当前版本：0.1.0-alpha.2。** 这是 OAuth 伴随适配器，不是 Codewhale 原生 `/login` provider 插件。依据 Codewhale 0.10.1 开发源码 `ecbf2869ab9110486a9e1d6d75481d1d7adf8acf` 的插件和自定义 provider 接口实现。该版本的插件接口不能注册模型提供商或 OAuth 回调，因此使用独立 CLI 完成授权，通过临时本地 provider 连接 Codewhale；`plugin.json` 提供可选的使用说明 skill。
+**当前版本：0.1.0-alpha.3。** 这是 OAuth 伴随适配器，不是 Codewhale 原生 `/login` provider 插件。依据 Codewhale 0.10.1 开发源码 `ecbf2869ab9110486a9e1d6d75481d1d7adf8acf` 的插件和自定义 provider 接口实现。该版本的插件接口不能注册模型提供商或 OAuth 回调，因此使用独立 CLI 完成授权，通过临时本地 provider 连接 Codewhale；`plugin.json` 提供可选的使用说明 skill。
+
+模型元数据从 [models.dev](https://models.dev/api.json?type=all) 自动获取并缓存，按模型名模糊匹配大小写、分隔符、供应商前缀等差异。LMM 服务端已经提供的字段优先；元数据未匹配时仍保留账户授权的模型，价格与实际请求 ID 不改写。
 
 目前支持目录中声明 `openai-completions` 的模型、工具调用请求与 SSE 透传。**不支持 Responses-only、Anthropic Messages-only 模型，也未移植 Pi 的 MCP、市场工具和原生模型选择器集成。** 不会伪造模型能力、上下文长度或价格。
 

@@ -1,6 +1,6 @@
 {
   "name": "@tokennotincluded/codewhale-lmm-provider",
-  "version": "0.1.0-alpha.2",
+  "version": "0.1.0-alpha.3",
   "description": "LMM OAuth companion adapter and guidance bundle for Codewhale",
   "type": "module",
   "license": "AGPL-3.0-only",

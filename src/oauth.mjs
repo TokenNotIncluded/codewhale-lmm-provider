@@ -147,7 +147,7 @@ export class OAuth {
       await response.body?.cancel();
       throw new LmmError(response.status === 401 ? 'LMM authorization expired or was revoked. Run login again.' : `LMM request rejected (HTTP ${response.status}).`);
     }
-    const bytes = response.body ? await boundedBody(response.body) : Buffer.alloc(0);
+    const bytes = response.body ? await boundedBody(response.body, path === '/api/oauth2/catalog' ? 32 * 1024 * 1024 : undefined) : Buffer.alloc(0);
     return bytes.length ? object(parseJSON(bytes)) : {};
   }
   async discover(signal) {

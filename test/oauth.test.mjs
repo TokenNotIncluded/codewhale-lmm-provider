@@ -92,3 +92,10 @@ test('token responses cannot widen scope or reuse a refresh token', async t => {
 test('unknown exceptions are redacted', () => {
   assert.equal(safeMessage(new Error('lmm_at_secret')), 'LMM operation failed. No credential was printed.');
 });
+
+test('full catalog responses exceed the old 2 MB cap without widening OAuth responses', async () => {
+  const body = JSON.stringify({ models: [{ id: 'future-route', description: 'x'.repeat(5_000_000) }] });
+  const oauth = new OAuth('https://lmm.test', async () => new Response(body, { headers: { 'content-type': 'application/json' } }));
+  assert.equal((await oauth.request('/api/oauth2/catalog')).models.length, 1);
+  await assert.rejects(oauth.request('/.well-known/oauth-authorization-server'), /size limit/);
+});

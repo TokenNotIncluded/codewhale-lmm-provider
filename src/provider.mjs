@@ -6,8 +6,9 @@ import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { spawn } from 'node:child_process';
 import { boundedBody, canonicalID, check, LmmError, object, parseJSON, scopes, text } from './oauth.mjs';
+import { loadModelsDev, peekModelsDev } from './models-dev-cache.mjs';
 
-export function parseCatalog(value, session) {
+export function parseCatalog(value, session, references = peekModelsDev()) {
   object(value);
   check(value.schema_version === 1 && value.resource === session.resource && Array.isArray(value.groups) && Array.isArray(value.models));
   check(value.groups.length <= 1000 && value.models.length <= 10000);
@@ -28,14 +29,31 @@ export function parseCatalog(value, session) {
     seen.add(model.id);
     check(Array.isArray(model.apis) && model.apis.every(api => typeof api === 'string'));
     // Visibility follows the login grant; host wire support is checked at invocation.
-    models.push(model);
+    const reference = references.resolve(model.upstream_model);
+    if (!reference) { models.push(model); continue; }
+    const source = model.metadata && typeof model.metadata === 'object' && !Array.isArray(model.metadata) ? model.metadata : {};
+    const fallback = {
+      context_window: reference.limit.context || null,
+      max_input_tokens: reference.limit.input || null,
+      max_output_tokens: reference.limit.output || null,
+      input_modalities: reference.modalities.input,
+      output_modalities: reference.modalities.output,
+      reasoning: reference.reasoning,
+      tool_call: reference.tool_call,
+    };
+    const metadata = Object.fromEntries(Object.entries(fallback).map(([key, value]) => [key, source[key] ?? value]));
+    models.push({ ...model, metadata: { ...source, ...metadata, source: source.source ? `${source.source}; ${reference.source}` : reference.source },
+      metadata_reference: { source: reference.source, id: reference.id, provider: reference.provider } });
   }
   return models;
 }
 export async function catalog(store, signal) {
   const session = await store.access(signal);
-  const raw = await store.oauth.request('/api/oauth2/catalog', { access: session.access, signal });
-  return { session, models: parseCatalog(raw, session) };
+  const [raw, references] = await Promise.all([
+    store.oauth.request('/api/oauth2/catalog', { access: session.access, signal }),
+    loadModelsDev(),
+  ]);
+  return { session, models: parseCatalog(raw, session, references) };
 }
 export function selectModel(models, id) {
   if (id) {
@@ -88,7 +106,7 @@ export async function startBridge(store, { timeoutMs = 600_000 } = {}) {
       }
       const { session, models } = await catalog(store, signal);
       if (list) {
-        // Preserve catalog metadata verbatim; unknown costs/capabilities stay unknown.
+        // Preserve authorized IDs and prices; models.dev only fills missing metadata.
         json(res, 200, { object: 'list', data: models.map(model => ({ ...model, object: 'model', owned_by: 'lmm' })) });
         return;
       }
