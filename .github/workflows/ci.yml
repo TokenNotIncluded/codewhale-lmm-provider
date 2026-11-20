@@ -29,7 +29,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        host: ['0.10.0', latest]
+        host: ['0.10.0', '0.10.2', latest]
     steps:
       - uses: actions/checkout@v4
         with:
