@@ -24,8 +24,11 @@ the user must use LMM's authorization management page. Bare `/logout` applies to
 the Codewhale account. `/login status` is not an LMM balance or grant display.
 
 If `/login lmm` or `codewhale install` is missing, the host needs the native-login
-changes linked in README. If the native models route returns 404, the server needs
-PR #672. If the catalog is empty, check live authorized groups and model access;
+changes linked in README. PR #1 is merged into the user's fork review branch;
+do not assume an official binary includes it. The old Go server PR #672 is merged,
+but current Rust Core still needs the group-bound standard routes and the provider
+client registration from draft PR #11. If the native models route returns 404,
+report this integration gap; do not substitute /v1 or invent a default group. If the catalog is empty, check live authorized groups and model access;
 do not invent model IDs, prices or a default group. After a catalog fetch error,
 use the host's existing provider/model refresh interface, not a second login tool.
 

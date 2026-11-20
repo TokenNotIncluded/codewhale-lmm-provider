@@ -12,6 +12,7 @@
     "plugin.json",
     "skills",
     "README.md",
+    "DYNAMIC_CATALOG.md",
     "LICENSE"
   ],
   "scripts": {

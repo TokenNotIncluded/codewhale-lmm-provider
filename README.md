@@ -4,8 +4,9 @@
 不需要复制 API Key，不需要另一个登录程序，也不运行本地代理。
 
 **源码版本：0.2.0-alpha.1。尚未发布到 npm。** 本版按新的原生接口开发，
-不兼容旧版 Codewhale。下面的使用流程需要宿主改动和服务端改动都可用；
-PR 存在不代表已合并、已发布或已部署。
+不兼容旧版 Codewhale。当前是待集成的源码迁移分支：宿主安装与登录改动
+已合入用户 fork 的审查分支，但当前 Rust Core 仍缺少下面声明的分组绑定标准入口。
+客户端注册也依赖尚未合并的 Core PR #11。完成这些接口和真实宿主验收前，不应将本分支作为可用安装版本发布。
 
 ## 依赖与改动来源
 
@@ -15,11 +16,15 @@ PR 存在不代表已合并、已发布或已部署。
 本版还依赖以下改动：
 
 - [Codewhale 安装与 `/login` 改进](https://github.com/LIghtJUNction/Codewhale/pull/1)。
-  这是用户 fork 中的审查 PR，目标是提交给上游。当前连接向官方仓库创建 PR
-  返回 403，不能把它称为已提交或已合并的上游 PR。
-  [官方仓库对比入口](https://github.com/codewhale-hq/Codewhale/compare/main...LIghtJUNction:Codewhale:feat/native-plugin-login-install)。
-- [LMM 服务端 PR #672](https://github.com/TokenNotIncluded/api.lmm.best/pull/672)，
-  提供带分组约束的标准模型目录和请求入口。
+  已合入用户 fork 的 `review/upstream-native-plugin-base` 分支，
+  [固定合并提交](https://github.com/LIghtJUNction/Codewhale/commit/fa70769eb5e03ca0875b7b8044d019a568230e0c)。
+  这不是官方主分支或正式二进制已包含该改动的证明。
+- [历史 LMM 服务端 PR #672](https://github.com/TokenNotIncluded/api.lmm.best/pull/672)
+  已合入旧 Go 实现，提供带分组约束的标准模型目录和请求入口。
+  当前 Rust Core 的 [OAuth 路由](https://github.com/TokenNotIncluded/lmm-api-source/blob/3d1c09d5e0424b44603686f7419e76f790b2bb5c/services/core/src/oauth2_http.rs)
+  尚未迁移 `/api/oauth2/openai/v1/models` 和 `/chat/completions`。
+  [Core PR #11](https://github.com/TokenNotIncluded/lmm-api-source/pull/11) 补客户端身份与预算，
+  仍为草稿，也没有补这两个分组绑定入口。旧 Go 的通过记录不能作为当前 Rust 服务的验收。
 - [本插件 PR #3](https://github.com/TokenNotIncluded/codewhale-lmm-provider/pull/3)，
   将原来的导出器替换为固定的原生插件，并删除旧登录和代理代码。
 
@@ -35,7 +40,7 @@ PR 存在不代表已合并、已发布或已部署。
 codewhale install --help
 ```
 
-改动合并到插件主分支后，直接安装：
+以下是宿主与 Rust 服务接口完成验收后的安装方式：
 
 ```sh
 codewhale install git:github.com/TokenNotIncluded/codewhale-lmm-provider
@@ -89,7 +94,8 @@ codewhale install ./codewhale-lmm-provider
 设备码登录。拒绝授权时不会导入任何旧凭据。
 
 模型目录为空时，检查账号已授权的分组和服务端是否有可用模型。
-目录返回 404 时，先确认服务端 PR #672 已部署。
+目录返回 404 时，检查部署的服务是否实现分组绑定标准入口；仅有历史 PR #672
+或普通 `/v1/models` 不足以证明这一合同。不要通过修改基址或加入默认组绕过该缺口。
 授权成功但目录读取失败时，不必再运行任何外部登录程序；回到 `/provider`
 选择 LMM，并使用模型界面现有的刷新操作。
 
@@ -131,7 +137,8 @@ Anthropic Messages-only、MCP 市场工具、设备码授权或远端撤销。
 初始权限沿用公共客户端 `lmm-codewhale` 的四项：`catalog:read`、
 `balance:read`、`usage:read`、`models:invoke`。分组权限由服务端在用户同意后追加。
 
-协议依据：[LMM OAuth contract](https://github.com/TokenNotIncluded/api.lmm.best/blob/main/apps/api-go/service/oauth_contract.md)。
+目录与元数据边界见 [Dynamic OAuth catalog](DYNAMIC_CATALOG.md)。
+历史协议依据为上面的 Go PR #672；当前 Rust 实现与宿主都需要独立验收。
 
 ## 开发检查
 

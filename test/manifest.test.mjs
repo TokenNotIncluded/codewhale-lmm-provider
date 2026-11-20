@@ -50,7 +50,7 @@ test('package has no executable entry, runtime dependency or install hook', () =
     assert.equal(pkg[key], undefined, key);
   }
   assert.deepEqual(Object.keys(pkg.scripts).sort(), ['check', 'pack:check', 'test']);
-  assert.deepEqual(pkg.files, ['plugin.json', 'skills', 'README.md', 'LICENSE']);
+  assert.deepEqual(pkg.files, ['plugin.json', 'skills', 'README.md', 'DYNAMIC_CATALOG.md', 'LICENSE']);
 });
 
 test('old companion runtime and environment workflow are removed, not hidden', () => {
@@ -66,7 +66,8 @@ test('README names actual dependencies, one login and local-only logout', () => 
     'https://github.com/codewhale-hq/Codewhale/pull/6805',
     'https://github.com/LIghtJUNction/Codewhale/pull/1',
     'https://github.com/TokenNotIncluded/api.lmm.best/pull/672']) assert(readme.includes(text), text);
-  assert(readme.includes('403'));
+  assert(readme.includes('当前 Rust Core'));
+  assert(readme.includes('https://github.com/TokenNotIncluded/lmm-api-source/pull/11'));
   assert(!/^codewhale-lmm /m.test(readme));
   assert(!/^npm install/m.test(readme));
 });
@@ -80,11 +81,17 @@ test('guidance never asks the model to manage user credentials', () => {
 
 test('published tarball contains only the native bundle, not tests or old runtime', () => {
   const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-  const [pack] = JSON.parse(execFileSync(npm, ['pack', '--dry-run', '--ignore-scripts', '--json'], {
+  const packed = JSON.parse(execFileSync(npm, ['pack', '--dry-run', '--ignore-scripts', '--json'], {
     cwd: root, encoding: 'utf8', timeout: 30000, shell: process.platform === 'win32',
     env: { ...process.env, npm_config_audit: 'false', npm_config_fund: 'false', npm_config_update_notifier: 'false' },
   }));
+  // npm 12 names package records by package name; earlier npm returns an array.
+  const packages = Array.isArray(packed) ? packed : Object.values(packed);
+  assert.equal(packages.length, 1);
+  const [pack] = packages;
+  assert.equal(pack.name, pkg.name);
+  assert.equal(pack.version, pkg.version);
   assert.deepEqual(pack.files.map(file => file.path).sort(),
-    ['LICENSE', 'README.md', 'package.json', 'plugin.json', 'skills/lmm/SKILL.md'].sort());
+    ['DYNAMIC_CATALOG.md', 'LICENSE', 'README.md', 'package.json', 'plugin.json', 'skills/lmm/SKILL.md'].sort());
   assert(pack.files.every(file => file.size > 0));
 });
